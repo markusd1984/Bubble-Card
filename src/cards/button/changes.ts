@@ -1,6 +1,6 @@
 import { getButtonType } from "./helpers.ts";
 import { initializesubButtonIcon } from '../../tools/global-changes.ts';
-import { 
+import {
   applyScrollingEffect,
   getIcon,
   getIconColor,
@@ -31,7 +31,7 @@ export function changeButton(context) {
 
   if (buttonType === 'switch' && isOn) {
     const useAccentColor = context.config.use_accent_color;
-    
+
     if (lightColor && isLight && !useAccentColor) {
       newButtonColor = getIconColor(context);
       newOpacity = '.5';
@@ -135,40 +135,37 @@ export function changeSlider(context) {
     if (context.dragging) return;
 
     let percentage = 0;
+    let minValue = context.config.slider_config?.min ?? 0;
+    let maxValue = context.config.slider_config?.max ?? 100;
 
     if (isEntityType(context, "light")) {
       percentage = 100 * getAttribute(context, "brightness") / 255;
     } else if (isEntityType(context, "media_player")) {
       if (isStateOn(context)) {
         percentage = 100 * getAttribute(context, "volume_level");
-      } else {
-        percentage = 0;
       }
     } else if (isEntityType(context, "cover")) {
       percentage = getAttribute(context, "current_position");
     } else if (isEntityType(context, "input_number")) {
-      const minValue = getAttribute(context, "min");
-      const maxValue = getAttribute(context, "max");
+      const entityMin = getAttribute(context, "min");
+      const entityMax = getAttribute(context, "max");
       const value = getState(context);
+      // Use configured min/max if available, otherwise use entity attributes
+      minValue = context.config.slider_config?.min ?? entityMin ?? 0;
+      maxValue = context.config.slider_config?.max ?? entityMax ?? 100;
       percentage = 100 * (value - minValue) / (maxValue - minValue);
-    } else if (isEntityType(context, "fan")) {
-      if (isStateOn(context)) {
-        percentage = getAttribute(context, "percentage");
-      } else {
-        percentage = 0;
-      }
     } else if (isEntityType(context, "climate")) {
-      const minValue = getAttribute(context, "min_temp");
-      const maxValue = getAttribute(context, "max_temp");
+      const entityMin = getAttribute(context, "min_temp");
+      const entityMax = getAttribute(context, "max_temp");
       const value = getAttribute(context, "temperature");
-      percentage = 100 * (value - minValue) / (maxValue - minValue);
-    } else if (isEntityType(context, "number")) {
-      const minValue = getAttribute(context, "min");
-      const maxValue = getAttribute(context, "max");
-      const value = getState(context);
+      // Use configured min/max if available, otherwise use entity attributes
+      minValue = context.config.slider_config?.min ?? entityMin ?? 0;
+      maxValue = context.config.slider_config?.max ?? entityMax ?? 100;
       percentage = 100 * (value - minValue) / (maxValue - minValue);
     }
 
+    // Clamp percentage to configured range
+    percentage = Math.min(100, Math.max(0, percentage));
     context.elements.rangeFill.style.transform = `translateX(${percentage}%)`;
   }
 }

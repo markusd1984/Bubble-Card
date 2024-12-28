@@ -18,6 +18,11 @@ export function getButtonType(context) {
 
 export function updateEntity(context, value) {
   const state = context._hass.states[context.config.entity];
+  const minValue = context.config.slider_config?.min ?? 0;
+  const maxValue = context.config.slider_config?.max ?? 100;
+
+  // Scale the value to the configured range
+  const scaledValue = (maxValue - minValue) * (value / 100) + minValue;
 
   if (isEntityType(context, "light")) {
       context._hass.callService('light', 'turn_on', {
@@ -51,18 +56,15 @@ export function updateEntity(context, value) {
           entity_id: context.config.entity,
           percentage: adjustedValue
       });
-  } else if (isEntityType(context, "climate")) {
-      const minValue = state.attributes.min_temp ?? 0;
-      const maxValue = state.attributes.max_temp ?? 10000;
-      const isCelcius = context._hass.config.unit_system.temperature === '°C';
-      const step = state.attributes.target_temp_step ? state.attributes.target_temp_step : isCelcius ? 0.5 : 1;
-      let rawValue = (maxValue - minValue) * value / 100 + minValue;
-      let adjustedValue = Math.round(rawValue / step) * step;
+    } else if (isEntityType(context, "climate")) {
+      const step = state.attributes.target_temp_step ?? 0.5;
+      let adjustedValue = Math.round(scaledValue / step) * step;
       adjustedValue = parseFloat(adjustedValue.toFixed(1));
       context._hass.callService('climate', 'set_temperature', {
-          entity_id: context.config.entity,
-          temperature: adjustedValue
+        entity_id: context.config.entity,
+        temperature: adjustedValue
       });
+    }
   } else if (isEntityType(context, "number")) {
       const minValue = state.attributes.min ?? 0;
       const maxValue = state.attributes.max ?? 100;
@@ -81,7 +83,15 @@ export function onSliderChange(context, leftDistance) {
   const percentage = 100 * (leftDistance - rect.left) / rect.width;
   const rangedPercentage = Math.min(100, Math.max(0, percentage));
 
-  context.elements.rangeFill.style.transform = `translateX(${rangedPercentage}%)`;
+  // Get min/max values from config
+  const minValue = context.config.slider_config?.min ?? 0;
+  const maxValue = context.config.slider_config?.max ?? 100;
 
-  return rangedPercentage;
+  // Scale the percentage to the configured range
+  const scaledValue = (maxValue - minValue) * (rangedPercentage / 100) + minValue;
+  const scaledPercentage = 100 * (scaledValue - minValue) / (maxValue - minValue);
+
+  context.elements.rangeFill.style.transform = `translateX(${scaledPercentage}%)`;
+
+  return scaledPercentage;
 }
